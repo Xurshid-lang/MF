@@ -22,6 +22,8 @@ button.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#
 button.primary:hover:not(:disabled){border-color:transparent;box-shadow:0 10px 26px rgba(79,70,229,.5)}
 button.big{width:100%;padding:16px 18px;font-size:1.12rem}
 button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+input.name{width:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card) 92%,transparent);color:var(--ink);font:inherit;margin:0 0 14px}
+input.name:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .hint{color:var(--mute);font-size:.94rem}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px}
 .chips span{background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 18%,transparent),color-mix(in srgb,var(--acc2) 18%,transparent));border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:999px;padding:6px 14px;font-size:.92rem;font-weight:650}
@@ -71,6 +73,7 @@ button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
 <main id="app"></main>
 <script>
 const TITLE='Деньги и Банки', MAX_MISTAKES=3, QCOUNT=30, LIMIT=30*60; // 30 вопросов, 30 минут, Удачи 
+const SHEET_URL='https://script.google.com/macros/s/AKfycbyhujcq6VhAb4Q2a-J0yj39SxV8Yj9zqNv0Ut94waNnhJNLHB1NqBftYTAq4wpQKKLG/exec'; // ссылка веб-приложения Google Apps Script
 
 const $=id=>document.getElementById(id);
 // null и false пропускаются: атрибут не создаётся (так кнопка не блокируется по ошибке)
@@ -81,20 +84,31 @@ const mount=(...n)=>{$('app').replaceChildren(...n.flat().filter(Boolean));windo
 
 let bank=[],loaded=false,quiz=null,timer=null;
 
+// отправка результата в Google Таблицу
+function sendResult(r){
+  if(!SHEET_URL||SHEET_URL.startsWith('ВСТАВЬТЕ'))return;
+  try{fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(r)}).catch(()=>{})}catch(e){}
+}
+
 // ---------- старт ----------
 function viewStart(){
   if(!loaded)return mount(h('h1',{},TITLE),h('p',{class:'hint'},'Загружаю вопросы…'));
   if(!bank.length)return mount(h('h1',{},TITLE),h('div',{class:'card'},h('p',{},'Не удалось загрузить вопросы. Проверьте, что файл questions.txt лежит рядом с index.html.')));
   const n=Math.min(QCOUNT,bank.length);
+  let saved='';try{saved=localStorage.getItem('sname')||''}catch(e){}
+  const inp=h('input',{class:'name',placeholder:'Фамилия и имя',maxlength:'60',value:saved,autocomplete:'name'});
+  const go=()=>{const nm=inp.value.trim();if(!nm){inp.focus();return}try{localStorage.setItem('sname',nm)}catch(e){}startQuiz(nm)};
+  inp.onkeydown=e=>{if(e.key==='Enter')go()};
   mount(h('h1',{},TITLE),h('div',{class:'card'},
     h('div',{class:'chips'},h('span',{},n+' вопросов'),h('span',{},'30 минут'),h('span',{},'Допустимо ошибок: '+MAX_MISTAKES)),
     h('p',{class:'hint'},'Выберите вариант и нажмите «Далее»: сразу увидите, верно ли ответили. Пока не нажали «Далее», ответ можно изменить. Номера вопросов справа помогут перейти к любому из них.'),
-    h('button',{class:'primary big',onclick:startQuiz},'Начать тест')));
+    inp,
+    h('button',{class:'primary big',onclick:go},'Начать тест')));
 }
 
-function startQuiz(){
+function startQuiz(name){
   const qs=shuffle(bank).slice(0,QCOUNT).map(q=>({q:q.q,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}));
-  quiz={active:true,qs,ans:new Array(qs.length).fill(-1),done:new Array(qs.length).fill(false),i:0,left:LIMIT};
+  quiz={active:true,name,qs,ans:new Array(qs.length).fill(-1),done:new Array(qs.length).fill(false),i:0,left:LIMIT};
   clearInterval(timer);
   timer=setInterval(()=>{quiz.left--;const e=$('timer');if(e){e.textContent=fmt(quiz.left);e.classList.toggle('low',quiz.left<=60)}if(quiz.left<=0)finish()},1000);
   renderQ();
@@ -155,6 +169,7 @@ function finish(){
       g?null:h('small',{},'Правильный ответ: '+right)));
   });
   const wrong=qs.length-ok,pct=Math.round(ok/qs.length*100),passed=wrong<=MAX_MISTAKES;
+  sendResult({name:quiz.name,ok,wrong,total:qs.length,pct,passed,time:fmt(spent)});
   mount(h('div',{class:'card'},h('h2',{style:'margin-top:0'},'Результат теста'),
     h('div',{class:'stats'},h('div',{},h('b',{},ok+'/'+qs.length),h('span',{},'Результат')),h('div',{},h('b',{},pct+'%'),h('span',{},'Процент')),h('div',{},h('b',{},fmt(spent)),h('span',{},'Время'))),
     h('p',{},'Правильных ответов: '+ok+' · Неправильных ответов: '+wrong),
