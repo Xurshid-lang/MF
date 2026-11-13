@@ -72,7 +72,12 @@ input.name:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 <body>
 <main id="app"></main>
 <script>
-const TITLE='Международные финансы ', MAX_MISTAKES=, QCOUNT=25, LIMIT=30*60; // 25 вопросов, 30 минут, Удачи 
+// ---------- НАСТРОЙКИ ----------
+const TITLE='Деньги и Банки';
+const QCOUNT=20;        // количество вопросов в тесте
+const TIME_MIN=30;      // время на тест, минуты
+const MAX_MISTAKES=3;   // допустимо ошибок
+const LIMIT=TIME_MIN*60;
 const SHEET_URL='https://script.google.com/macros/s/AKfycbw4QsVxL7WNucx3nUm_bjENSvZUNEIM8ZBFaekDlb27Aqc8YMNczyzrRitYGoZ4SNiE/exec'; // ссылка веб-приложения Google Apps Script
 
 const $=id=>document.getElementById(id);
@@ -100,7 +105,7 @@ function viewStart(){
   const go=()=>{const nm=inp.value.trim();if(!nm){inp.focus();return}try{localStorage.setItem('sname',nm)}catch(e){}startQuiz(nm)};
   inp.onkeydown=e=>{if(e.key==='Enter')go()};
   mount(h('h1',{},TITLE),h('div',{class:'card'},
-    h('div',{class:'chips'},h('span',{},n+' вопросов'),h('span',{},'30 минут'),h('span',{},'Допустимо ошибок: '+MAX_MISTAKES)),
+    h('div',{class:'chips'},h('span',{},n+' вопросов'),h('span',{},TIME_MIN+' минут'),h('span',{},'Допустимо ошибок: '+MAX_MISTAKES)),
     h('p',{class:'hint'},'Выберите вариант и нажмите «Далее»: сразу увидите, верно ли ответили. Пока не нажали «Далее», ответ можно изменить. Номера вопросов справа помогут перейти к любому из них.'),
     inp,
     h('button',{class:'primary big',onclick:go},'Начать тест')));
