@@ -106,7 +106,7 @@ function viewStart(){
   inp.onkeydown=e=>{if(e.key==='Enter')go()};
   mount(h('h1',{},TITLE),h('div',{class:'card'},
     h('div',{class:'chips'},h('span',{},n+' вопросов'),h('span',{},TIME_MIN+' минут')),
-    h('p',{class:'hint'},'Выберите вариант и нажмите «Далее»: сразу увидите, верно ли ответили. Пока не нажали «Далее», ответ можно изменить. Номера вопросов справа помогут перейти к любому из них.'),
+    h('p',{class:'hint'},'Выберите вариант и нажмите «Далее»: сразу увидите, верно ли ответили. Пока не нажали «Далее», ответ можно изменить. Номера вопросов справа помогут перейти к любому из них. С клавиатуры: стрелки ↑ ↓ выбирают ответ, Enter нажимает «Далее».'),
     inp,
     h('button',{class:'primary big',onclick:go},'Начать тест')));
 }
@@ -152,8 +152,8 @@ function renderQ(){
     h('div',{class:'nav'},
       h('button',{disabled:i===0?'':null,onclick:()=>{if(quiz.i>0){quiz.i--;renderQ()}}},'Назад'),
       isDone
-        ?h('button',{class:'primary',onclick:()=>{last?finish():(quiz.i++,renderQ())}},last?'Завершить':'Следующий вопрос')
-        :h('button',{class:'primary',disabled:ans[i]<0?'':null,onclick:()=>{if(quiz.ans[i]<0)return;quiz.done[i]=true;renderQ()}},'Далее'))));
+        ?h('button',{class:'primary',id:'nextBtn',onclick:()=>{last?finish():(quiz.i++,renderQ())}},last?'Завершить':'Следующий вопрос')
+        :h('button',{class:'primary',id:'nextBtn',disabled:ans[i]<0?'':null,onclick:()=>{if(quiz.ans[i]<0)return;quiz.done[i]=true;renderQ()}},'Далее'))));
 
   mount(h('div',{class:'layout'},main,side));
 }
@@ -183,6 +183,27 @@ function finish(){
     h('button',{class:'primary',onclick:()=>{quiz=null;viewStart()}},'Пройти заново'));
 }
 window.addEventListener('beforeunload',e=>{if(quiz&&quiz.active){e.preventDefault();e.returnValue=''}});
+
+// ---------- клавиатура: ↑ ↓ выбор ответа, Enter = «Далее» ----------
+document.addEventListener('keydown',e=>{
+  if(!quiz||!quiz.active)return;
+  const t=e.target;
+  if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
+  const i=quiz.i,n=quiz.qs[i].opts.length;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    if(quiz.done[i])return; // после проверки ответ менять нельзя
+    const cur=quiz.ans[i];
+    quiz.ans[i]=e.key==='ArrowDown'?(cur<0?0:(cur+1)%n):(cur<0?n-1:(cur-1+n)%n);
+    const y=window.scrollY;renderQ();window.scrollTo(0,y);
+  }else if(e.key==='Enter'){
+    e.preventDefault();
+    if(e.repeat)return; // удержание Enter не перескакивает через вопросы
+    const b=$('nextBtn');
+    if(b&&!b.disabled)b.click();
+  }
+});
 
 // ---------- чтение questions.txt ----------
 function parseQs(txt){
